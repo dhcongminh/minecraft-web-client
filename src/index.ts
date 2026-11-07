@@ -849,7 +849,10 @@ export async function connect (connectOptions: ConnectOptions) {
 
       progress.setMessage('Placing blocks (starting viewer)')
       if (!connectOptions.worldStateFileContents || connectOptions.worldStateFileContents.length < 3 * 1024 * 1024) {
-        localStorage.lastConnectOptions = JSON.stringify(connectOptions)
+        // loginPassword is intentionally ephemeral; never persist it in the
+        // browser's reconnect data.
+        const { loginPassword: _loginPassword, ...persistedConnectOptions } = connectOptions
+        localStorage.lastConnectOptions = JSON.stringify(persistedConnectOptions)
         if (process.env.NODE_ENV === 'development' && !localStorage.lockUrl && !location.search.slice(1).length) {
           lockUrl()
         }
