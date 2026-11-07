@@ -1,0 +1,6 @@
+name: WebcakeVoice
+version: 1.0.0
+main: vn.dhcongminh.webcakevoice.WebcakeVoicePlugin
+api-version: '1.19'
+softdepend: [AuthMe]
+description: LiveKit global and proximity voice bridge for Minecraft Web Client

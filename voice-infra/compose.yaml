@@ -1,0 +1,75 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks: [voice-internal]
+
+  livekit:
+    image: livekit/livekit-server:v1.9.11
+    restart: unless-stopped
+    environment:
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      LIVEKIT_PUBLIC_IP: ${LIVEKIT_PUBLIC_IP:?Set LIVEKIT_PUBLIC_IP in .env}
+      LIVEKIT_CONFIG: |
+        port: 7880
+        log_level: info
+        rtc:
+          tcp_port: 7881
+          port_range_start: 50000
+          port_range_end: 50100
+          use_external_ip: true
+          node_ip: ${LIVEKIT_PUBLIC_IP:?Set LIVEKIT_PUBLIC_IP in .env}
+        redis:
+          address: redis:6379
+        keys:
+          ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+    ports:
+      - "7881:7881/tcp"
+      - "50000-50100:50000-50100/udp"
+    networks: [proxy, voice-internal]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.webcake-livekit.rule=Host(`${VOICE_DOMAIN:?Set VOICE_DOMAIN in .env}`) && PathPrefix(`/rtc`)
+      - traefik.http.routers.webcake-livekit.priority=100
+      - traefik.http.routers.webcake-livekit.entrypoints=websecure
+      - traefik.http.routers.webcake-livekit.tls=true
+      - traefik.http.routers.webcake-livekit.tls.certresolver=letsencrypt
+      - traefik.http.services.webcake-livekit.loadbalancer.server.port=7880
+
+  coturn:
+    build: ./coturn
+    restart: unless-stopped
+    environment:
+      TURN_DOMAIN: ${VOICE_DOMAIN:?Set VOICE_DOMAIN in .env}
+      TURN_EXTERNAL_IP: ${LIVEKIT_PUBLIC_IP:?Set LIVEKIT_PUBLIC_IP in .env}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:?Set TURN_SHARED_SECRET in .env}
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+    networks: [voice-internal]
+
+  token-issuer:
+    build: ./token-issuer
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?Set LIVEKIT_API_KEY in .env}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?Set LIVEKIT_API_SECRET in .env}
+      LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL:?Set LIVEKIT_PUBLIC_URL in .env}
+      VOICE_PLUGIN_SECRET: ${VOICE_PLUGIN_SECRET:?Set VOICE_PLUGIN_SECRET in .env}
+      TURN_DOMAIN: ${VOICE_DOMAIN:?Set VOICE_DOMAIN in .env}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:?Set TURN_SHARED_SECRET in .env}
+    networks: [proxy, voice-internal]
+
+networks:
+  proxy:
+    external: true
+  voice-internal:
+
+volumes:
+  redis-data:

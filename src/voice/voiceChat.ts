@@ -25,6 +25,8 @@ export interface VoiceConfig {
   identity: string
   hearingRange: number
   moderated: boolean
+  mode?: 'around' | 'global'
+  iceServers?: RTCIceServer[]
 }
 
 export interface NearbyPlayer {
@@ -59,6 +61,7 @@ let pendingVoiceAvailable = false
 let serverForceMuted: string[] = []
 /** Identities LiveKit currently reports as actively speaking. */
 let activeSpeakerIdentities = new Set<string>()
+const globalAudioElements = new Map<string, HTMLAudioElement[]>()
 /** Safety net for `enableVoice`: clears a stuck `isJoining` if the server never answers. */
 let joinTimeoutHandle: ReturnType<typeof setTimeout> | undefined
 
@@ -101,9 +104,25 @@ const applyStoredSettings = (identity: string) => {
 
 const attachRemoteTrack = (track: RemoteTrack, participant: RemoteParticipant) => {
   if (track.kind !== Track.Kind.Audio) return
+  if (currentConfig?.mode === 'global') {
+    const audioElements = (track as RemoteAudioTrack).attach()
+    for (const audio of audioElements) {
+      audio.autoplay = true
+      audio.style.display = 'none'
+      document.body.appendChild(audio)
+    }
+    globalAudioElements.set(participant.identity, audioElements)
+    return
+  }
   const stream = new MediaStream([track.mediaStreamTrack])
   spatializer?.addSpeaker(participant.identity, participant.name || participant.identity, stream)
   applyStoredSettings(participant.identity)
+}
+
+const removeRemoteAudio = (identity: string) => {
+  for (const audio of globalAudioElements.get(identity) ?? []) audio.remove()
+  globalAudioElements.delete(identity)
+  spatializer?.removeSpeaker(identity)
 }
 
 const computeVoiceState = (identity: string): PlayerVoiceState => {
@@ -156,7 +175,9 @@ const applySubscriptionState = () => {
   })
 
   for (const participant of room.remoteParticipants.values()) {
-    const shouldHear = nearbyIdentities.has(participant.identity) && !serverForceMuted.includes(participant.identity)
+    const shouldHear = currentConfig?.mode === 'global'
+      ? !serverForceMuted.includes(participant.identity)
+      : nearbyIdentities.has(participant.identity) && !serverForceMuted.includes(participant.identity)
     for (const publication of participant.trackPublications.values()) {
       if (publication.kind !== Track.Kind.Audio) continue
       if (publication.isSubscribed !== shouldHear) {
@@ -164,7 +185,7 @@ const applySubscriptionState = () => {
         ;(publication).setSubscribed(shouldHear)
       }
     }
-    if (!shouldHear) spatializer?.removeSpeaker(participant.identity)
+    if (!shouldHear) removeRemoteAudio(participant.identity)
   }
 }
 
@@ -265,8 +286,11 @@ export const toggleTalking = () => {
 window.voiceSetTalking = setTalking
 
 export const connectVoice = async (config: VoiceConfig) => {
-  if (room) return
+  if (room && currentConfig?.mode === (config.mode ?? 'around')) return
+  if (room) await cleanupConnection()
   currentConfig = config
+  config.mode ??= 'around'
+  voiceChatStatus.mode = config.mode
 
   spatializer = new VoiceSpatializer()
   spatializer.setHearingRange(config.hearingRange)
@@ -274,7 +298,8 @@ export const connectVoice = async (config: VoiceConfig) => {
   room = new Room({
     // Voice is low-bitrate and proximity-gated; we manage subscriptions ourselves
     adaptiveStream: false,
-    dynacast: false
+    dynacast: false,
+    ...(config.iceServers ? { rtcConfig: { iceServers: config.iceServers } } : {})
   })
 
   room
@@ -296,11 +321,11 @@ export const connectVoice = async (config: VoiceConfig) => {
     })
     .on(RoomEvent.TrackUnsubscribed, (_track, _publication, participant) => {
       console.log('[voice] track unsubscribed', participant.identity)
-      spatializer?.removeSpeaker(participant.identity)
+      removeRemoteAudio(participant.identity)
     })
     .on(RoomEvent.ParticipantDisconnected, participant => {
       console.log('[voice] participant disconnected', participant.identity)
-      spatializer?.removeSpeaker(participant.identity)
+      removeRemoteAudio(participant.identity)
       delete lastAppliedVoiceState[participant.identity]
     })
     .on(RoomEvent.ActiveSpeakersChanged, speakers => {
@@ -366,6 +391,10 @@ const cleanupConnection = async () => {
   }
   voiceNearbyPlayers.splice(0, voiceNearbyPlayers.length)
   for (const key of Object.keys(lastAppliedVoiceState)) delete lastAppliedVoiceState[key]
+  for (const audioElements of globalAudioElements.values()) {
+    for (const audio of audioElements) audio.remove()
+  }
+  globalAudioElements.clear()
   activeSpeakerIdentities = new Set()
   serverForceMuted = []
 }
@@ -457,7 +486,7 @@ export const enableVoice = () => {
   options.voiceChatEnabled = true
   options.voiceChatConsented = true
   voiceChatStatus.isJoining = true
-  sendToServer?.('enable', {})
+  sendToServer?.('enable', { mode: voiceChatStatus.mode })
 
   // If the server never answers (dropped connection, restarted proxy, the
   // stale-state bug this was added for), don't leave the button stuck showing
@@ -471,6 +500,15 @@ export const enableVoice = () => {
     voiceChatStatus.isErrored = true
     voiceChatStatus.active = true
   }, 10_000)
+}
+
+/** Switches both microphone and speakers between server-authorized voice rooms. */
+export const toggleVoiceMode = () => {
+  const mode = voiceChatStatus.mode === 'around' ? 'global' : 'around'
+  voiceChatStatus.mode = mode
+  if (!voiceChatStatus.active) return
+  voiceChatStatus.isJoining = true
+  sendToServer?.('mode', { mode })
 }
 
 export const declineVoice = () => {

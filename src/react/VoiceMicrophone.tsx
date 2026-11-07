@@ -16,6 +16,7 @@ export const voiceChatStatus = proxy({
   serverSupportsVoice: false,
   /** Between sending 'enable' and the connection settling (success or failure). Lets buttons show a "Joining…" state and avoid double-submits. */
   isJoining: false,
+  mode: 'around' as 'around' | 'global',
 })
 
 window.voiceChatStatus = voiceChatStatus

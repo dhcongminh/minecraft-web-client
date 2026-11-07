@@ -1,0 +1,8 @@
+{
+  "name": "webcake-voice-token-issuer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "livekit-server-sdk": "^2.13.1"
+  }
+}

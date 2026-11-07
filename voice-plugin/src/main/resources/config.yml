@@ -1,0 +1,10 @@
+# Internal HTTP service that creates short-lived LiveKit access tokens.
+issuer-url: "http://voice-issuer:3000/token"
+# Shared secret with voice-issuer. Generate a long random value; never expose it to browsers.
+issuer-secret: "CHANGE_ME"
+server-id: "webcake-team"
+hearing-range: 32.0
+# Never issue voice credentials before AuthMe has authenticated the player.
+require-authme: true
+# Mode used when the user first enables voice in a session.
+default-mode: "around"

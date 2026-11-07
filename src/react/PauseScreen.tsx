@@ -25,7 +25,7 @@ import { collectFilesToCopy, fileExistsAsyncOptimized, mkdirRecursive, uniqueFil
 import { appQueryParams } from '../appParams'
 import { downloadPacketsReplay, packetsRecordingState } from '../packetsReplay/packetsReplayLegacy'
 import { options } from '../optionsStorage'
-import { joinVoiceChat, leaveVoiceChat } from '../voice/voiceChat'
+import { joinVoiceChat, leaveVoiceChat, toggleVoiceMode } from '../voice/voiceChat'
 import { useIsModalActive } from './utilsApp'
 import { showOptionsModal } from './SelectOption'
 import Button from './Button'
@@ -166,7 +166,7 @@ export default () => {
   const { active: packetsReplaceActive, hasRecordedPackets: packetsReplaceHasRecordedPackets } = useSnapshot(packetsRecordingState)
   const { displayRecordButton: displayPacketsButtons } = useSnapshot(options)
   const { appConfig } = useSnapshot(miscUiState)
-  const { active: voiceActive, serverSupportsVoice, isJoining: voiceJoining } = useSnapshot(voiceChatStatus)
+  const { active: voiceActive, serverSupportsVoice, isJoining: voiceJoining, mode: voiceMode } = useSnapshot(voiceChatStatus)
 
   const handlePointerLockChange = () => {
     if (!pointerLock.hasPointerLock && activeModalStack.length === 0) {
@@ -286,6 +286,16 @@ export default () => {
           onClick={() => (voiceActive ? leaveVoiceChat() : joinVoiceChat())}
         >
           {voiceJoining ? 'Joining…' : voiceActive ? 'Leave Voice Chat' : 'Join Voice Chat'}
+        </Button>
+      )}
+      {serverSupportsVoice && voiceActive && (
+        <Button
+          className="button"
+          style={{ width: '204px' }}
+          disabled={voiceJoining}
+          onClick={toggleVoiceMode}
+        >
+          Voice: {voiceMode === 'around' ? 'Around' : 'Global'}
         </Button>
       )}
       {singleplayer ? (
