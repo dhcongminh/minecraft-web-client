@@ -489,6 +489,7 @@ export const disconnectVoice = async () => {
   voiceChatStatus.lastError = ''
   voiceChatStatus.hasInputVoice = false
   pendingVoiceAvailable = false
+  autoJoinAttempted = false
 }
 
 /** Change the microphone device, republishing the track. */
@@ -525,21 +526,18 @@ export const onVoiceAvailable = () => {
   presentVoiceAvailable()
 }
 
+// The server re-advertises `available` every few seconds; auto-join exactly once per session.
+let autoJoinAttempted = false
+
 const presentVoiceAvailable = () => {
-  if (!options.voiceChatEnabled) return
-  if (!options.voiceChatConsented) {
-    showModal({ reactType: 'voice-chat-consent' })
-    return
-  }
+  if (!options.voiceChatEnabled || autoJoinAttempted) return
+  autoJoinAttempted = true
+  console.info('[voice] server advertised voice, joining automatically')
   enableVoice()
 }
 
 /** Explicit user action (e.g. the pause screen button) — always attempts to join, ignoring a prior decline. */
 export const joinVoiceChat = () => {
-  if (!options.voiceChatConsented) {
-    showModal({ reactType: 'voice-chat-consent' })
-    return
-  }
   enableVoice()
 }
 
@@ -567,7 +565,9 @@ export const enableVoice = () => {
   options.voiceChatEnabled = true
   options.voiceChatConsented = true
   voiceChatStatus.isJoining = true
-  sendToServer?.('enable', { mode: voiceChatStatus.mode })
+  // A normal chat command: the custom client->server payload never reached Paper through the proxy.
+  console.info('[voice] requesting voice config', { mode: voiceChatStatus.mode })
+  sendVoiceModeCommand?.(voiceChatStatus.mode)
 
   // If the server never answers (dropped connection, restarted proxy, the
   // stale-state bug this was added for), don't leave the button stuck showing

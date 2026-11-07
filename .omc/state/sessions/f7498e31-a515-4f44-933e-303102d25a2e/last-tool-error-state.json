@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ssh root@dhcongminh.id.vn 'set -e; cd /opt/webcake-team-minecraft-web && git pull -q --ff-only origin next && git log --oneline -1 && docker run --rm -v \\\"$PWD/voice-plugin\\\":/w -w /w mave...",
+  "error": "Exit code 1\na8fe88d1 Log voice issuer failures with cause chain and config-sent details\n-rw-r--r-- 1 root root 14120 Nov  7 16:30 voice-plugin/target/WebcakeVoice.jar\n0faed229c25949ca\n0faed229c25949ca\nbash: line 1: unzip: command not found\nbash: line 1: strings: command not found\n0",
+  "timestamp": "2026-11-07T15:30:36.368Z",
+  "retry_count": 2
+}
