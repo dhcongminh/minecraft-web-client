@@ -1,6 +1,4 @@
 import { proxy, useSnapshot } from 'valtio'
-import { showModal } from '../globalState'
-import PixelartIcon, { pixelartIcons } from './PixelartIcon'
 
 export const voiceChatStatus = proxy({
   active: false,
@@ -53,8 +51,6 @@ export default () => {
     return 'Talking'
   }
 
-  const SETTINGS_SIZE = 22
-
   return (
     <>
       <div
@@ -84,33 +80,6 @@ export default () => {
       >
         <Icon muted={muted} />
       </div>
-      {/* Desktop has the `V` keybind; touch devices have no keyboard, so surface an explicit settings tap target. */}
-      {usingTouch && (
-        <div
-          title='Voice chat settings'
-          onClick={() => showModal({ reactType: 'voice-chat-menu' })}
-          style={{
-            position: 'fixed',
-            top: 4 + SIZE + 6,
-            left: 4 + (SIZE - SETTINGS_SIZE) / 2,
-            zIndex: 10,
-            width: SETTINGS_SIZE,
-            height: SETTINGS_SIZE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            background: 'rgba(0, 0, 0, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.35)',
-            borderRadius: '50%',
-            touchAction: 'manipulation',
-            userSelect: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <PixelartIcon iconName={pixelartIcons.sliders} width={14} />
-        </div>
-      )}
     </>
   )
 }
