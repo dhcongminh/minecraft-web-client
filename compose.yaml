@@ -1,0 +1,26 @@
+services:
+  minecraft-web:
+    build:
+      context: .
+    container_name: minecraft-web-login
+    restart: unless-stopped
+    environment:
+      # Address of the Minecraft server players join after submitting the form.
+      MC_SERVER: ${MC_SERVER:?Set MC_SERVER in .env}
+      # Optional. Leave blank to let the client detect/select the version.
+      MC_VERSION: ${MC_VERSION:-}
+      # Optional WebSocket proxy. Empty means the bundled proxy is used.
+      MC_PROXY: ${MC_PROXY:-}
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.minecraft-web.rule=Host(`${DOMAIN:?Set DOMAIN in .env}`)
+      - traefik.http.routers.minecraft-web.entrypoints=websecure
+      - traefik.http.routers.minecraft-web.tls=true
+      - traefik.http.routers.minecraft-web.tls.certresolver=letsencrypt
+      - traefik.http.services.minecraft-web.loadbalancer.server.port=8080
+
+networks:
+  proxy:
+    external: true

@@ -51,10 +51,23 @@ app.get('/config.json', (req, res, next) => {
   try {
     publicConfig = require('./public/config.json')
   } catch { }
+  const loginServerParams = process.env.MC_SERVER
+    ? {
+        ip: process.env.MC_SERVER,
+        version: process.env.MC_VERSION || undefined,
+        proxy: process.env.MC_PROXY || undefined,
+        onlyConnect: '1',
+      }
+    : {}
   res.json({
     ...config,
     'defaultProxy': '', // use current url (this server)
     ...publicConfig,
+    appParams: {
+      ...(config.appParams || {}),
+      ...(publicConfig.appParams || {}),
+      ...loginServerParams,
+    },
   })
 })
 if (isProd) {

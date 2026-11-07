@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import { useSnapshot } from 'valtio'
+import { FormEvent, useState } from 'react'
 import { appQueryParams } from '../appParams'
 import { ConnectOptions } from '../connect'
 import { lastConnectOptions } from '../appStatus'
@@ -10,14 +9,19 @@ import Button from './Button'
 const VERTICAL_LAYOUT = false
 
 export default () => {
-  const { ip, version, proxy, username, connectText } = appQueryParams
+  const { ip, version, proxy, username: configuredUsername, connectText } = appQueryParams
   const isModalActive = useIsModalActive('only-connect-server')
+  const [username, setUsername] = useState(configuredUsername || '')
+  const [password, setPassword] = useState('')
 
   if (!isModalActive) return null
 
-  const handleConnect = () => {
+  const handleConnect = (event: FormEvent) => {
+    event.preventDefault()
+    if (!username.trim() || !password) return
     const connectOptions: ConnectOptions = {
-      username: username || '',
+      username: username.trim(),
+      loginPassword: password,
       server: ip,
       proxy,
       botVersion: version,
@@ -38,19 +42,20 @@ export default () => {
       alignItems: 'center',
       justifyContent: 'center'
     }}>
-      <div style={{
+      <form onSubmit={handleConnect} style={{
         display: 'flex',
-        gap: '40px',
-        alignItems: 'center',
+        gap: '18px',
+        alignItems: VERTICAL_LAYOUT ? 'center' : 'stretch',
         background: 'rgba(0, 0, 0, 0.5)',
-        padding: VERTICAL_LAYOUT ? '15px 40px' : '25px',
-        // paddingRight: VERTICAL_LAYOUT ? '0' : '40px',
+        padding: '28px',
         borderRadius: '5px',
         flexDirection: VERTICAL_LAYOUT ? 'column' : 'row',
+        minWidth: '300px',
       }}>
         <div style={{
           color: 'white',
-          fontSize: '13px'
+          fontSize: '13px',
+          minWidth: '190px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
             <PixelartIcon iconName={pixelartIcons.server} width={16} />
@@ -59,12 +64,19 @@ export default () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <PixelartIcon iconName={pixelartIcons.user} width={16} />
-            <span style={{ marginLeft: '8px' }}>{username}</span>
             {version && <span style={{ marginLeft: '8px', color: 'lightgray' }}>({version})</span>}
           </div>
+          <label style={{ display: 'block', marginTop: '16px', color: 'lightgray' }}>
+            Username
+            <input required autoFocus autoComplete='username' value={username} onChange={e => setUsername(e.target.value)} style={inputStyle} />
+          </label>
+          <label style={{ display: 'block', marginTop: '10px', color: 'lightgray' }}>
+            Password
+            <input required type='password' autoComplete='current-password' value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+          </label>
         </div>
         <Button
-          onClick={handleConnect}
+          type='submit'
           style={{
             width: 'auto',
             padding: '0 12px',
@@ -72,9 +84,21 @@ export default () => {
             transformOrigin: 'center'
           }}
         >
-          {connectText || 'Connect'}
+          {connectText || 'Play'}
         </Button>
-      </div>
+      </form>
     </div>
   )
+}
+
+const inputStyle = {
+  display: 'block',
+  boxSizing: 'border-box' as const,
+  width: '100%',
+  marginTop: '5px',
+  padding: '8px',
+  color: 'white',
+  background: 'rgba(0, 0, 0, 0.45)',
+  border: '1px solid #777',
+  borderRadius: '3px',
 }

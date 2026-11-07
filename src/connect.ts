@@ -13,6 +13,8 @@ export type ConnectOptions = {
   server?: string
   singleplayer?: any
   username: string
+  /** Password entered in the dedicated login screen. It is kept in memory only. */
+  loginPassword?: string
   proxy?: string
   botVersion?: string
   serverOverrides?

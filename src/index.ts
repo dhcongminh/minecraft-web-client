@@ -858,7 +858,9 @@ export async function connect (connectOptions: ConnectOptions) {
       }
       connectOptions.onSuccessfulPlay?.()
       updateDataAfterJoin()
-      const password = findServerPassword()
+      // A password supplied by the login screen must never go in the URL or
+      // local storage.  It only lives on this connection attempt.
+      const password = connectOptions.loginPassword || findServerPassword()
       if (password) {
         setTimeout(() => {
           bot.chat(`/login ${password}`)
