@@ -21,22 +21,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Server-authoritative bridge for Minecraft Web Client's LiveKit voice channel. */
 public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, PluginMessageListener {
     private static final String CHANNEL = "minecraft-web-client:voice-chat";
     private final Map<UUID, Mode> modes = new ConcurrentHashMap<>();
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private BukkitTask nearbyTask;
     private int availabilityTicks;
 
@@ -108,12 +107,10 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         request.addProperty("mode", mode.name().toLowerCase());
         request.addProperty("room", roomName(mode));
         request.addProperty("hearingRange", getConfig().getDouble("hearing-range", 32));
-        HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(getConfig().getString("issuer-url")))
-                .timeout(Duration.ofSeconds(8))
-                .header("Content-Type", "application/json")
-                .header("X-Voice-Plugin-Secret", getConfig().getString("issuer-secret"))
-                .POST(HttpRequest.BodyPublishers.ofString(request.toString())).build();
-        http.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
+        // java.net.http.HttpClient intermittently kept a stale Docker route in
+        // this Paper JVM even while curl from the same container reached the
+        // issuer. HttpURLConnection opens a fresh connection for each token.
+        CompletableFuture.supplyAsync(() -> issueToken(request.toString())).whenComplete((response, error) -> {
             if (error != null || response.statusCode() != 200) {
                 getLogger().warning("Voice issuer failed for " + player.getName() + ": " + (error == null ? response.statusCode() : error.getMessage()));
                 modes.remove(player.getUniqueId(), mode); // retry automatically on the next authenticated tick
@@ -129,6 +126,28 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
             });
         });
     }
+
+    private IssuerResponse issueToken(String requestBody) {
+        try {
+            HttpURLConnection connection = (HttpURLConnection) URI.create(getConfig().getString("issuer-url")).toURL().openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(8000);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("X-Voice-Plugin-Secret", getConfig().getString("issuer-secret"));
+            connection.getOutputStream().write(requestBody.getBytes(StandardCharsets.UTF_8));
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            String body = stream == null ? "" : new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            connection.disconnect();
+            return new IssuerResponse(status, body);
+        } catch (IOException error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    private record IssuerResponse(int statusCode, String body) {}
 
     private String roomName(Mode mode) { return getConfig().getString("server-id") + ":" + (mode == Mode.GLOBAL ? "global" : "around"); }
 
