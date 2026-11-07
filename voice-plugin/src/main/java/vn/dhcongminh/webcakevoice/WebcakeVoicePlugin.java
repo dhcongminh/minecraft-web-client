@@ -37,6 +37,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
     private final Map<UUID, Mode> modes = new ConcurrentHashMap<>();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private BukkitTask nearbyTask;
+    private int availabilityTicks;
 
     private enum Mode { GLOBAL, AROUND }
 
@@ -124,6 +125,14 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
     }
 
     private void broadcastNearby() {
+        // The web client registers its custom channel after joining. Re-advertise
+        // periodically so the first packet is never lost during that handshake.
+        if (++availabilityTicks >= 5) {
+            availabilityTicks = 0;
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (isAuthenticated(player)) send(player, "available", new JsonObject());
+            }
+        }
         double range = getConfig().getDouble("hearing-range", 32);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (modes.get(player.getUniqueId()) != Mode.AROUND || !isAuthenticated(player)) continue;
