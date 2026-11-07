@@ -289,7 +289,7 @@ export default () => {
           {voiceJoining ? 'Joining…' : voiceActive ? 'Leave Voice Chat' : 'Join Voice Chat'}
         </Button>
       )}
-      {voiceAvailable && voiceActive && (
+      {voiceAvailable && (
         <Button
           className="button"
           style={{ width: '204px' }}
