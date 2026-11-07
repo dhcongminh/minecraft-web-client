@@ -686,6 +686,12 @@ const registerVoiceChatChannel = () => {
   bot._client.registerChannel(CHANNEL_NAME, packetStructure, true)
 
   setVoiceServerSender((action, payload) => {
+    // Re-register just before a request. The initial register packet is sent
+    // during Minecraft login, where a WebSocket proxy can race Paper's play
+    // state transition and silently lose it. Minecraft processes these TCP
+    // packets in order, so the server knows this channel before the action.
+    bot._client.writeChannel('minecraft:register', [CHANNEL_NAME])
+    console.info('[voice] sending server action', { action })
     bot._client.writeChannel(CHANNEL_NAME, { action, json: JSON.stringify(payload) })
   })
 
