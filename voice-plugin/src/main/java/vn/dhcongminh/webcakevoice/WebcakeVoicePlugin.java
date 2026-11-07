@@ -65,8 +65,9 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         try {
             Packet packet = Packet.decode(message);
             JsonObject payload = packet.json.isBlank() ? new JsonObject() : JsonParser.parseString(packet.json).getAsJsonObject();
-            if ("enable".equals(packet.action)) requestToken(player, parseMode(getConfig().getString("default-mode", "around")));
+            if ("enable".equals(packet.action)) requestToken(player, parseMode(payload.has("mode") ? payload.get("mode").getAsString() : getConfig().getString("default-mode", "around")));
             if ("mode".equals(packet.action)) requestToken(player, parseMode(payload.has("mode") ? payload.get("mode").getAsString() : "around"));
+            if ("disable".equals(packet.action)) modes.remove(player.getUniqueId());
         } catch (Exception exception) {
             getLogger().warning("Bad voice packet from " + player.getName() + ": " + exception.getMessage());
         }

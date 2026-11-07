@@ -167,6 +167,7 @@ export default () => {
   const { displayRecordButton: displayPacketsButtons } = useSnapshot(options)
   const { appConfig } = useSnapshot(miscUiState)
   const { active: voiceActive, serverSupportsVoice, isJoining: voiceJoining, mode: voiceMode } = useSnapshot(voiceChatStatus)
+  const voiceAvailable = serverSupportsVoice || appQueryParams.voiceAlwaysAvailable === 'true'
 
   const handlePointerLockChange = () => {
     if (!pointerLock.hasPointerLock && activeModalStack.length === 0) {
@@ -265,7 +266,7 @@ export default () => {
         <NetworkStatus />
       </div>
     </ErrorBoundary>
-    {serverSupportsVoice && (
+    {voiceAvailable && (
       <div style={{ position: 'fixed', top: '5px', right: 'calc(env(safe-area-inset-right) + 5px)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
         <Button
           title="Voice Chat Settings"
@@ -278,7 +279,7 @@ export default () => {
       <Button className="button" style={{ width: '204px' }} onClick={onReturnPress}>Back to Game</Button>
       <PauseLinkButtons />
       <Button className="button" style={{ width: '204px' }} onClick={() => openOptionsMenu('main')}>Options...</Button>
-      {serverSupportsVoice && (
+      {voiceAvailable && (
         <Button
           className="button"
           style={{ width: '204px' }}
@@ -288,7 +289,7 @@ export default () => {
           {voiceJoining ? 'Joining…' : voiceActive ? 'Leave Voice Chat' : 'Join Voice Chat'}
         </Button>
       )}
-      {serverSupportsVoice && voiceActive && (
+      {voiceAvailable && voiceActive && (
         <Button
           className="button"
           style={{ width: '204px' }}

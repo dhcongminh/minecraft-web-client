@@ -57,6 +57,7 @@ app.get('/config.json', (req, res, next) => {
         version: process.env.MC_VERSION || undefined,
         proxy: process.env.MC_PROXY || undefined,
         onlyConnect: '1',
+        voiceAlwaysAvailable: 'true',
       }
     : {}
   res.json({

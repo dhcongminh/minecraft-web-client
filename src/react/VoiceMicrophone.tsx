@@ -1,6 +1,5 @@
 import { proxy, useSnapshot } from 'valtio'
 import { showModal } from '../globalState'
-import { useUsingTouch } from './utilsApp'
 import PixelartIcon, { pixelartIcons } from './PixelartIcon'
 
 export const voiceChatStatus = proxy({
@@ -38,7 +37,6 @@ const Icon = ({ muted }: { muted: boolean }) => {
 export default () => {
   const SIZE = 34
   const { active, muted, hasInputVoice, isConnected, isErrored, isAlone } = useSnapshot(voiceChatStatus)
-  const usingTouch = useUsingTouch()
   if (!active) return null
 
   const getRingColor = () => {
@@ -51,27 +49,9 @@ export default () => {
   const getTitle = () => {
     if (isErrored) return 'Voice chat error'
     if (!isConnected) return 'Voice chat connecting…'
-    if (muted) return usingTouch ? 'Tap and hold to talk' : 'Voice chat: hold ` to talk'
+    if (muted) return 'Click microphone to talk'
     return 'Talking'
   }
-
-  // On touch devices the indicator doubles as a push-to-talk button
-  const touchHandlers = usingTouch ? {
-    onPointerDown (e: React.PointerEvent) {
-      e.preventDefault()
-      window.voiceSetTalking?.(true)
-    },
-    onPointerUp (e: React.PointerEvent) {
-      e.preventDefault()
-      window.voiceSetTalking?.(false)
-    },
-    onPointerCancel () {
-      window.voiceSetTalking?.(false)
-    },
-    onPointerLeave () {
-      window.voiceSetTalking?.(false)
-    }
-  } : {}
 
   const SETTINGS_SIZE = 22
 
@@ -80,7 +60,7 @@ export default () => {
       <div
         className='voice-chat-microphone'
         title={getTitle()}
-        {...touchHandlers}
+        onClick={() => window.voiceSetTalking?.(muted)}
         style={{
           position: 'fixed',
           top: 4,
@@ -99,7 +79,7 @@ export default () => {
           transition: 'color 0.1s ease, box-shadow 0.1s ease',
           touchAction: 'none',
           userSelect: 'none',
-          cursor: usingTouch ? 'pointer' : 'default',
+          cursor: 'pointer',
         }}
       >
         <Icon muted={muted} />

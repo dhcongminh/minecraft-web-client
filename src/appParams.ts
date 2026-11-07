@@ -51,6 +51,8 @@ export type AppQsParams = {
   testCrashApp?: string
   onlyConnect?: string
   connectText?: string
+  /** Deployment flag: show voice controls before the server's first advertisement. */
+  voiceAlwaysAvailable?: string
   freezeSettings?: string
   testIosCrash?: string
   addPing?: string

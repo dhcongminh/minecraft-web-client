@@ -2,6 +2,8 @@ services:
   minecraft-web:
     build:
       context: .
+      args:
+        DOWNLOAD_SOUNDS: "true"
     container_name: minecraft-web-login
     restart: unless-stopped
     environment:
