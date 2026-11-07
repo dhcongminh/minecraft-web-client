@@ -25,7 +25,8 @@ import { collectFilesToCopy, fileExistsAsyncOptimized, mkdirRecursive, uniqueFil
 import { appQueryParams } from '../appParams'
 import { downloadPacketsReplay, packetsRecordingState } from '../packetsReplay/packetsReplayLegacy'
 import { options } from '../optionsStorage'
-import { joinVoiceChat, leaveVoiceChat, toggleVoiceMode } from '../voice/voiceChat'
+import { joinVoiceChat, leaveVoiceChat, toggleVoiceMode, toggleTalking } from '../voice/voiceChat'
+import { useIsSmallWidth } from './simpleHooks'
 import { useIsModalActive } from './utilsApp'
 import { showOptionsModal } from './SelectOption'
 import Button from './Button'
@@ -166,7 +167,8 @@ export default () => {
   const { active: packetsReplaceActive, hasRecordedPackets: packetsReplaceHasRecordedPackets } = useSnapshot(packetsRecordingState)
   const { displayRecordButton: displayPacketsButtons } = useSnapshot(options)
   const { appConfig } = useSnapshot(miscUiState)
-  const { active: voiceActive, serverSupportsVoice, isJoining: voiceJoining, mode: voiceMode } = useSnapshot(voiceChatStatus)
+  const { active: voiceActive, serverSupportsVoice, isJoining: voiceJoining, mode: voiceMode, isConnected: voiceConnected, muted: voiceMuted } = useSnapshot(voiceChatStatus)
+  const compactScreen = useIsSmallWidth()
   const voiceAvailable = serverSupportsVoice || appQueryParams.voiceAlwaysAvailable === 'true'
 
   const handlePointerLockChange = () => {
@@ -268,6 +270,14 @@ export default () => {
     </ErrorBoundary>
     {voiceAvailable && (
       <div style={{ position: 'fixed', top: '5px', right: 'calc(env(safe-area-inset-right) + 5px)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {compactScreen && (
+          <Button
+            title={voiceMuted ? 'Enable microphone' : 'Mute microphone'}
+            icon={voiceMuted ? pixelartIcons['volume-x'] : pixelartIcons['volume-2']}
+            disabled={!voiceConnected}
+            onClick={toggleTalking}
+          />
+        )}
         <Button
           title="Voice Chat Settings"
           icon={pixelartIcons.sliders}
@@ -277,6 +287,16 @@ export default () => {
     )}
     <div className={styles.pause_container}>
       <Button className="button" style={{ width: '204px' }} onClick={onReturnPress}>Back to Game</Button>
+      {voiceAvailable && !compactScreen && (
+        <Button
+          className="button"
+          style={{ width: '204px' }}
+          disabled={!voiceConnected}
+          onClick={toggleTalking}
+        >
+          {voiceMuted ? 'Enable microphone' : 'Mute microphone'}
+        </Button>
+      )}
       <PauseLinkButtons />
       <Button className="button" style={{ width: '204px' }} onClick={() => openOptionsMenu('main')}>Options...</Button>
       {voiceAvailable && (

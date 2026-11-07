@@ -299,27 +299,34 @@ const ensureLocalMicTrack = async (): Promise<LocalAudioTrack | undefined> => {
 
 /** Push-to-talk. Requests the mic on first press, then unmutes the published track. */
 export const setTalking = (talking: boolean) => {
+  // The UI follows the user's intent immediately. Waiting for getUserMedia/publish
+  // before updating made every click toggle against stale state.
   wantTalking = talking
+  voiceChatStatus.muted = !talking
   if (!talking) {
     if (localTrack) void localTrack.mute()
+    return
+  }
+  if (!room || room.state !== ConnectionState.Connected) {
+    wantTalking = false
     voiceChatStatus.muted = true
     return
   }
-  if (!room || room.state !== ConnectionState.Connected) return
-  void ensureLocalMicTrack().then(track => {
+  void ensureLocalMicTrack().then(async track => {
     if (!track) {
+      wantTalking = false
       voiceChatStatus.muted = true
       return
     }
-    if (wantTalking) void track.unmute()
-    else void track.mute()
-    voiceChatStatus.muted = !wantTalking
+    // Re-read the intent: the user may have toggled again while the mic was starting.
+    if (wantTalking) await track.unmute()
+    else await track.mute()
   })
 }
 
 /** Open-mic mode: the keybind toggles instead of holding. */
 export const toggleTalking = () => {
-  setTalking(voiceChatStatus.muted)
+  setTalking(!wantTalking)
 }
 
 // Used by the HUD indicator for tap-to-talk on touch devices
