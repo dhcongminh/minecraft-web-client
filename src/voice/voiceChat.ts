@@ -34,6 +34,33 @@ export interface NearbyPlayer {
   username: string
 }
 
+/** Keep user-facing errors useful when the SDK rejects with a non-Error value. */
+const describeVoiceError = (error: unknown) => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
+
+/**
+ * LiveKit's browser SDK expects the service origin and appends `/rtc/v1`
+ * itself. This also accepts an old issuer configuration containing `/rtc`, so
+ * a stale deployment cannot silently produce the invalid `/rtc/rtc/v1` URL.
+ */
+const normalizeLiveKitUrl = (rawUrl: string) => {
+  const url = new URL(rawUrl)
+  if (url.protocol !== 'wss:' && url.protocol !== 'ws:') {
+    throw new Error(`Voice server URL must use ws:// or wss:// (received ${url.protocol})`)
+  }
+  url.pathname = url.pathname.replace(/\/rtc\/?$/, '') || '/'
+  url.search = ''
+  url.hash = ''
+  return url.toString().replace(/\/$/, '')
+}
+
 /**
  * Mirrors `minecraft-renderer`'s `PlayerVoiceState`. Duplicated locally (rather
  * than imported) because the installed renderer package hasn't been published
@@ -105,7 +132,10 @@ const applyStoredSettings = (identity: string) => {
 const attachRemoteTrack = (track: RemoteTrack, participant: RemoteParticipant) => {
   if (track.kind !== Track.Kind.Audio) return
   if (currentConfig?.mode === 'global') {
-    const audioElements = (track as RemoteAudioTrack).attach()
+    // livekit-client 2.22 returns one HTMLMediaElement from attach(). Keep an
+    // array locally because a participant can still own more than one element
+    // over the lifetime of a room.
+    const audioElements = [(track as RemoteAudioTrack).attach()]
     for (const audio of audioElements) {
       audio.autoplay = true
       audio.style.display = 'none'
@@ -295,11 +325,40 @@ export const connectVoice = async (config: VoiceConfig) => {
   spatializer = new VoiceSpatializer()
   spatializer.setHearingRange(config.hearingRange)
 
+  let liveKitUrl: string
+  try {
+    liveKitUrl = normalizeLiveKitUrl(config.url)
+  } catch (error) {
+    const detail = describeVoiceError(error)
+    console.error('[voice] invalid server config', { url: config.url, room: config.room, mode: config.mode }, error)
+    showNotification('Voice chat failed to connect', detail, true)
+    clearJoinTimeout()
+    voiceChatStatus.isJoining = false
+    voiceChatStatus.active = true
+    voiceChatStatus.isErrored = true
+    return
+  }
+
+  if (!config.token || !config.room || !config.identity) {
+    const detail = 'Voice server returned an incomplete connection configuration.'
+    console.error('[voice] invalid server config', { hasToken: Boolean(config.token), room: config.room, identity: config.identity, mode: config.mode })
+    showNotification('Voice chat failed to connect', detail, true)
+    clearJoinTimeout()
+    voiceChatStatus.isJoining = false
+    voiceChatStatus.active = true
+    voiceChatStatus.isErrored = true
+    return
+  }
+
+  const rtcConfig = Array.isArray(config.iceServers) && config.iceServers.length > 0
+    ? { iceServers: config.iceServers }
+    : undefined
+  console.info('[voice] connecting', { url: liveKitUrl, room: config.room, identity: config.identity, mode: config.mode, iceServers: rtcConfig?.iceServers.length ?? 0 })
+
   room = new Room({
     // Voice is low-bitrate and proximity-gated; we manage subscriptions ourselves
     adaptiveStream: false,
     dynacast: false,
-    ...(config.iceServers ? { rtcConfig: { iceServers: config.iceServers } } : {})
   })
 
   room
@@ -343,7 +402,10 @@ export const connectVoice = async (config: VoiceConfig) => {
 
   try {
     // autoSubscribe off: proximity decides what we listen to
-    await room.connect(config.url, config.token, { autoSubscribe: false })
+    // `rtcConfig` is a Room.connect option in livekit-client 2.22. Passing it
+    // to the Room constructor is ignored, which leaves the browser without the
+    // TURN credentials supplied by the token issuer.
+    await room.connect(liveKitUrl, config.token, { autoSubscribe: false, ...(rtcConfig ? { rtcConfig } : {}) })
     console.log('[voice] room connected, known participants:', [...room.remoteParticipants.keys()])
     // Participants already in the room at connect time never fire
     // ParticipantConnected (that event is only for later joiners), so this
@@ -361,8 +423,9 @@ export const connectVoice = async (config: VoiceConfig) => {
     // they need to talk. The track stays muted until the mic button is clicked.
     void ensureLocalMicTrack()
   } catch (error) {
-    console.error('[voice] failed to connect', error)
-    showNotification('Voice chat failed to connect', String(error), true)
+    const detail = describeVoiceError(error)
+    console.error('[voice] failed to connect', { url: liveKitUrl, room: config.room, mode: config.mode }, error)
+    showNotification('Voice chat failed to connect', detail, true)
     // Tear down the connection but keep the HUD indicator visible in an
     // errored state, rather than fully disconnecting (which would hide it).
     await cleanupConnection()
