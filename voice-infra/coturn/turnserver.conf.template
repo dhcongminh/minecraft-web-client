@@ -7,9 +7,6 @@ external-ip=${TURN_EXTERNAL_IP}
 min-port=49160
 max-port=49200
 no-multicast-peers
-no-loopback-peers
-no-tcp-relay
 stale-nonce=600
-lt-cred-mech
 log-file=stdout
 simple-log
