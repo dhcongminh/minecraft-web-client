@@ -112,7 +112,18 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         // issuer. HttpURLConnection opens a fresh connection for each token.
         CompletableFuture.supplyAsync(() -> issueToken(request.toString())).whenComplete((response, error) -> {
             if (error != null || response.statusCode() != 200) {
-                getLogger().warning("Voice issuer failed for " + player.getName() + ": " + (error == null ? response.statusCode() : error.getMessage()));
+                URI issuer = URI.create(getConfig().getString("issuer-url"));
+                String target = issuer.getHost() + ":" + issuer.getPort() + issuer.getPath();
+                if (error == null) {
+                    String redactedBody = response.body().replaceAll("eyJ[\\w.-]+", "<jwt>").replaceAll("\"token\"\\s*:\\s*\"[^\"]*\"", "\"token\":\"<redacted>\"");
+                    getLogger().warning("Voice issuer rejected " + player.getName() + " at " + target + ": status=" + response.statusCode() + " body=" + redactedBody.substring(0, Math.min(200, redactedBody.length())));
+                } else {
+                    StringBuilder causes = new StringBuilder();
+                    for (Throwable cause = error; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+                        causes.append(causes.length() == 0 ? "" : " <- ").append(cause.getClass().getName()).append(": ").append(cause.getMessage());
+                    }
+                    getLogger().warning("Voice issuer unreachable for " + player.getName() + " at " + target + ": " + causes);
+                }
                 modes.remove(player.getUniqueId(), mode); // retry automatically on the next authenticated tick
                 Bukkit.getScheduler().runTask(this, () -> send(player, "error", object("message", "Voice service is unavailable.")));
                 return;
@@ -123,6 +134,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
                 config.addProperty("mode", mode.name().toLowerCase());
                 config.addProperty("hearingRange", getConfig().getDouble("hearing-range", 32));
                 send(player, "config", config);
+                getLogger().info("Voice config sent to " + player.getName() + ": urlHost=" + URI.create(config.get("url").getAsString()).getHost() + " room=" + config.get("room").getAsString() + " identity=" + config.get("identity").getAsString() + " mode=" + mode.name().toLowerCase() + " iceServers=" + config.getAsJsonArray("iceServers").size());
             });
         });
     }
