@@ -86,6 +86,7 @@ let spatializer: VoiceSpatializer | undefined
 let currentConfig: VoiceConfig | undefined
 let nearbyIdentities = new Set<string>()
 let sendToServer: ((action: string, payload: unknown) => void) | undefined
+let sendVoiceModeCommand: ((mode: 'around' | 'global') => void) | undefined
 /** `available` often arrives during world load; hideCurrentScreens() clears modals, so defer until gameLoaded. */
 let pendingVoiceAvailable = false
 /** Identities the server has force-muted (moderation). */
@@ -107,6 +108,11 @@ const lastAppliedVoiceState: Record<string, PlayerVoiceState | undefined> = {}
 /** Called by the custom channel layer to give us a way to talk back. */
 export const setVoiceServerSender = (sender: (action: string, payload: unknown) => void) => {
   sendToServer = sender
+}
+
+/** Mode changes use a normal Minecraft command, not a custom payload. */
+export const setVoiceModeCommandSender = (sender: (mode: 'around' | 'global') => void) => {
+  sendVoiceModeCommand = sender
 }
 
 const getPlayerSettings = (identity: string) => {
@@ -584,7 +590,7 @@ export const toggleVoiceMode = () => {
   voiceChatStatus.mode = mode
   if (!voiceChatStatus.active) return
   voiceChatStatus.isJoining = true
-  sendToServer?.('mode', { mode })
+  sendVoiceModeCommand?.(mode)
 }
 
 export const declineVoice = () => {

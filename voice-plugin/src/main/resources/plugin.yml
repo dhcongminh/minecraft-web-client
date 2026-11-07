@@ -4,3 +4,7 @@ main: vn.dhcongminh.webcakevoice.WebcakeVoicePlugin
 api-version: '1.19'
 softdepend: [AuthMe]
 description: LiveKit global and proximity voice bridge for Minecraft Web Client
+commands:
+  webcakevoice:
+    description: Switches Webcake voice mode.
+    usage: /webcakevoice <around|global>

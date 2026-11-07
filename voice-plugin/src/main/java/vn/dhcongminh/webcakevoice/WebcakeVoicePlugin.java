@@ -5,7 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.bukkit.Bukkit;
-import org.bukkit.NamespacedKey;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -46,6 +47,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
         getServer().getPluginManager().registerEvents(this, this);
+        getCommand("webcakevoice").setExecutor(this::handleVoiceCommand);
         nearbyTask = Bukkit.getScheduler().runTaskTimer(this, this::broadcastNearby, 20L, 20L);
         getLogger().info("Webcake voice bridge enabled");
     }
@@ -76,6 +78,23 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
 
     private Mode parseMode(String mode) { return "global".equalsIgnoreCase(mode) ? Mode.GLOBAL : Mode.AROUND; }
 
+    /** Uses a normal Minecraft command packet, which remains available even if a web proxy drops custom payloads. */
+    private boolean handleVoiceCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) return true;
+        if (!isAuthenticated(player)) {
+            player.sendMessage("Authenticate with /login before changing voice mode.");
+            return true;
+        }
+        if (args.length != 1 || !(args[0].equalsIgnoreCase("around") || args[0].equalsIgnoreCase("global"))) {
+            player.sendMessage("Usage: /webcakevoice <around|global>");
+            return true;
+        }
+        Mode mode = parseMode(args[0]);
+        getLogger().info("Voice mode " + mode.name().toLowerCase() + " requested by " + player.getName());
+        requestToken(player, mode);
+        return true;
+    }
+
     private void requestToken(Player player, Mode mode) {
         if (!isAuthenticated(player)) {
             send(player, "error", object("message", "Authenticate with /login before using voice chat."));
@@ -97,6 +116,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         http.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
             if (error != null || response.statusCode() != 200) {
                 getLogger().warning("Voice issuer failed for " + player.getName() + ": " + (error == null ? response.statusCode() : error.getMessage()));
+                modes.remove(player.getUniqueId(), mode); // retry automatically on the next authenticated tick
                 Bukkit.getScheduler().runTask(this, () -> send(player, "error", object("message", "Voice service is unavailable.")));
                 return;
             }
@@ -127,6 +147,18 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
     }
 
     private void broadcastNearby() {
+        // Voice connects automatically after AuthMe succeeds. This deliberately
+        // avoids relying on a browser-to-Paper custom payload: the web proxy
+        // forwards normal play traffic but has been dropping those payloads.
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!isAuthenticated(player)) continue;
+            Mode defaultMode = parseMode(getConfig().getString("default-mode", "around"));
+            if (modes.putIfAbsent(player.getUniqueId(), defaultMode) == null) {
+                getLogger().info("Auto-connecting voice for authenticated player " + player.getName());
+                requestToken(player, defaultMode);
+            }
+        }
+
         // The web client registers its custom channel after joining. Re-advertise
         // periodically so the first packet is never lost during that handshake.
         if (++availabilityTicks >= 5) {

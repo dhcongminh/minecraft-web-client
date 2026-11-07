@@ -9,7 +9,7 @@ import { registerRecipeChannels } from './core/recipeChannels'
 import { serverSafeSettings } from './defaultOptions'
 import { lastConnectOptions } from './appStatus'
 import { gameAdditionalState } from './globalState'
-import { applyNearbyPlayers, onVoiceAvailable, onVoiceConfig, onVoiceError, setVoiceServerSender, disconnectVoice } from './voice/voiceChat'
+import { applyNearbyPlayers, onVoiceAvailable, onVoiceConfig, onVoiceError, setVoiceServerSender, setVoiceModeCommandSender, disconnectVoice } from './voice/voiceChat'
 
 const isWebSocketServer = (server: string | undefined) => {
   if (!server) return false
@@ -693,6 +693,11 @@ const registerVoiceChatChannel = () => {
     bot._client.writeChannel('minecraft:register', [CHANNEL_NAME])
     console.info('[voice] sending server action', { action })
     bot._client.writeChannel(CHANNEL_NAME, { action, json: JSON.stringify(payload) })
+  })
+  setVoiceModeCommandSender(mode => {
+    // Mineflayer sends this as a standard chat-command packet, which the local
+    // WebSocket proxy reliably forwards to Paper.
+    bot.chat(`/webcakevoice ${mode}`)
   })
 
   bot._client.on(CHANNEL_NAME as any, (data) => {
