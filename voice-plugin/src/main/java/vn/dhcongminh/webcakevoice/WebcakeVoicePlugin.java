@@ -105,7 +105,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         modes.put(player.getUniqueId(), mode);
         JsonObject request = new JsonObject();
         request.addProperty("identity", player.getUniqueId().toString());
-        request.addProperty("name", player.getName());
+        request.addProperty("username", player.getName());
         request.addProperty("server", getConfig().getString("server-id"));
         request.addProperty("mode", mode.name().toLowerCase());
         request.addProperty("room", roomName(mode));
