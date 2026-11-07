@@ -70,6 +70,19 @@ app.get('/config.json', (req, res, next) => {
     },
   })
 })
+// Runtime configuration arrives after the client boot sequence. Redirect the
+// bare site URL once so its connection parameters are already present when the
+// browser app starts and the login form can open immediately.
+app.get('/', (req, res, next) => {
+  if (!isProd || !process.env.MC_SERVER || req.query.ip || req.query.proxy) return next()
+  const params = new URLSearchParams({
+    ip: process.env.MC_SERVER,
+    onlyConnect: '1',
+  })
+  if (process.env.MC_VERSION) params.set('version', process.env.MC_VERSION)
+  if (process.env.MC_PROXY) params.set('proxy', process.env.MC_PROXY)
+  res.redirect(`/?${params.toString()}`)
+})
 if (isProd) {
   // add headers to enable shared array buffer
   app.use((req, res, next) => {
