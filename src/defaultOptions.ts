@@ -44,7 +44,8 @@ export const defaultOptions = {
   displayRecordButton: true,
   packetsLoggerPreset: 'all' as 'all' | 'no-buffers',
   serversAutoVersionSelect: 'auto' as 'auto' | 'latest' | '1.20.4' | string,
-  customChannels: 'websocket' as boolean | 'websocket',
+  // Webcake joins Paper through the bundled proxy (server is host:port, not ws://), and voice chat needs custom channels there.
+  customChannels: true as boolean | 'websocket',
   remoteContentNotSameOrigin: false as boolean | string[],
   packetsRecordingAutoStart: false,
   language: 'auto',
