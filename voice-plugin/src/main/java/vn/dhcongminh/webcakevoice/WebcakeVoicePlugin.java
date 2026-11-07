@@ -43,6 +43,9 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
 
     @Override public void onEnable() {
         saveDefaultConfig();
+        // Bukkit silently falls back to the bundled defaults when config.yml is unreadable by the server user.
+        if (!new java.io.File(getDataFolder(), "config.yml").canRead()) getLogger().severe("config.yml is not readable by the server user; bundled defaults are in use");
+        getLogger().info("Voice issuer target: " + URI.create(getConfig().getString("issuer-url")).getAuthority());
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
         getServer().getPluginManager().registerEvents(this, this);
