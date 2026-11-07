@@ -1122,6 +1122,17 @@ const maybeEnterGame = () => {
     return waitForConfigFsLoad(openServerAction)
   }
 
+  // The deployed login gateway provides its fixed destination in config.json.
+  // That config is loaded asynchronously, so revisit it after it arrives when
+  // the visitor opened the clean site URL (without connection query params).
+  if (!location.search) {
+    return waitForConfigFsLoad(() => {
+      if (!(appQueryParams.ip || appQueryParams.proxy)) return
+      setLoadingScreenStatus(undefined)
+      showModal({ reactType: 'only-connect-server' })
+    })
+  }
+
   if (appQueryParams.connectPeer) {
     // try to connect to peer
     const peerId = appQueryParams.connectPeer

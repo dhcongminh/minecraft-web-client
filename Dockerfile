@@ -8,7 +8,7 @@ COPY . /app
 RUN corepack enable
 # Build arguments
 ARG DOWNLOAD_SOUNDS=false
-ARG DISABLE_SERVICE_WORKER=false
+ARG DISABLE_SERVICE_WORKER=true
 ARG CONFIG_JSON_SOURCE=REMOTE
 # TODO need flat --no-root-optional
 RUN node ./scripts/dockerPrepare.mjs

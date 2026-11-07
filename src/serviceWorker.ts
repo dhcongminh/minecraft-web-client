@@ -3,7 +3,13 @@ import { isCypress } from './standaloneUtils'
 // might not resolve at all
 export const registerServiceWorker = async () => {
   if (!('serviceWorker' in navigator) || process.env.SINGLE_FILE_BUILD) return
-  if (process.env.DISABLE_SERVICE_WORKER) return
+  if (process.env.DISABLE_SERVICE_WORKER) {
+    // This deployment is a login gateway, not an offline app. Remove any
+    // previously registered worker so it cannot keep serving an old entry page.
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map(registration => registration.unregister()))
+    return
+  }
   if (!isCypress() && process.env.NODE_ENV !== 'development') {
     return new Promise<void>(resolve => {
       window.addEventListener('load', async () => {
