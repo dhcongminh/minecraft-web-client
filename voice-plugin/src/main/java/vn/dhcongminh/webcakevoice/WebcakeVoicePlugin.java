@@ -64,6 +64,7 @@ public final class WebcakeVoicePlugin extends JavaPlugin implements Listener, Pl
         if (!CHANNEL.equals(channel)) return;
         try {
             Packet packet = Packet.decode(message);
+            getLogger().info("Voice " + packet.action + " request from " + player.getName());
             JsonObject payload = packet.json.isBlank() ? new JsonObject() : JsonParser.parseString(packet.json).getAsJsonObject();
             if ("enable".equals(packet.action)) requestToken(player, parseMode(payload.has("mode") ? payload.get("mode").getAsString() : getConfig().getString("default-mode", "around")));
             if ("mode".equals(packet.action)) requestToken(player, parseMode(payload.has("mode") ? payload.get("mode").getAsString() : "around"));

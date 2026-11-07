@@ -357,6 +357,9 @@ export const connectVoice = async (config: VoiceConfig) => {
     voiceChatStatus.isConnected = true
     voiceChatStatus.isErrored = false
     voiceChatStatus.muted = true
+    // Ask once on joining so the player can grant microphone permission before
+    // they need to talk. The track stays muted until the mic button is clicked.
+    void ensureLocalMicTrack()
   } catch (error) {
     console.error('[voice] failed to connect', error)
     showNotification('Voice chat failed to connect', String(error), true)
