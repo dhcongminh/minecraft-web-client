@@ -1,4 +1,4 @@
-import { proxy, useSnapshot } from 'valtio'
+import { proxy } from 'valtio'
 
 export const voiceChatStatus = proxy({
   active: false,
@@ -14,72 +14,8 @@ export const voiceChatStatus = proxy({
   /** Between sending 'enable' and the connection settling (success or failure). Lets buttons show a "Joining…" state and avoid double-submits. */
   isJoining: false,
   mode: 'around' as 'around' | 'global',
+  /** Safe-to-display failure detail from the server or LiveKit SDK. */
+  lastError: '',
 })
 
 window.voiceChatStatus = voiceChatStatus
-
-const Icon = ({ muted }: { muted: boolean }) => {
-  if (muted) {
-    // Microphone with a slash through it
-    return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-      <path fill="currentColor" d="M2 3h2v2H2zm2 2h2v2H4zm2 2h2v2H6zm2 2h2v2H8zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2zm2 2h2v2h-2z" />
-      <path fill="currentColor" d="M9 3h6v1h1v7h-1v1H9v-1H8V4h1zM6 10h1v2h1v1h1v1h6v-1h1v-1h1v-2h1v3h-1v2h-2v1h-2v2h2v2H9v-2h2v-2H9v-1H7v-2H6z" opacity="0.55" />
-    </svg>
-  }
-  return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-    <path fill="currentColor" d="M9 3h6v1h1v7h-1v1H9v-1H8V4h1z" />
-    <path fill="currentColor" d="M6 10h1v2h1v1h1v1h6v-1h1v-1h1v-2h1v3h-1v2h-2v1h-2v2h2v2H9v-2h2v-2H9v-1H7v-2H6z" />
-  </svg>
-}
-
-export default () => {
-  const SIZE = 34
-  const { active, muted, hasInputVoice, isConnected, isErrored, isAlone } = useSnapshot(voiceChatStatus)
-  if (!active) return null
-
-  const getRingColor = () => {
-    if (isErrored) return 'rgba(214, 4, 4, 0.6)'
-    if (!isConnected) return 'rgba(128, 128, 128, 0.5)'
-    if (isAlone) return 'rgba(183, 255, 0, 0.45)'
-    return 'rgba(50, 205, 50, 0.5)'
-  }
-
-  const getTitle = () => {
-    if (isErrored) return 'Voice chat error'
-    if (!isConnected) return 'Voice chat connecting…'
-    if (muted) return 'Click microphone to talk'
-    return 'Talking'
-  }
-
-  return (
-    <>
-      <div
-        className='voice-chat-microphone'
-        title={getTitle()}
-        onClick={() => window.voiceSetTalking?.(muted)}
-        style={{
-          position: 'fixed',
-          top: 4,
-          left: 4,
-          zIndex: 10,
-          width: SIZE,
-          height: SIZE,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: muted ? 'rgba(255, 255, 255, 0.55)' : hasInputVoice ? '#32cd32' : '#ffffff',
-          background: 'rgba(0, 0, 0, 0.4)',
-          border: `2px solid ${getRingColor()}`,
-          borderRadius: '50%',
-          boxShadow: hasInputVoice && !muted ? '0 0 8px rgba(50, 205, 50, 0.8)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
-          transition: 'color 0.1s ease, box-shadow 0.1s ease',
-          touchAction: 'none',
-          userSelect: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        <Icon muted={muted} />
-      </div>
-    </>
-  )
-}

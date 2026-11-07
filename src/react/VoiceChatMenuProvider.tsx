@@ -7,7 +7,8 @@ import {
   setPlayerVoiceSettings,
   setMasterVolume,
   setInputDevice,
-  leaveVoiceChat
+  leaveVoiceChat,
+  toggleTalking
 } from '../voice/voiceChat'
 import { voiceChatStatus } from './VoiceMicrophone'
 import Screen from './Screen'
@@ -54,7 +55,7 @@ export default () => {
   const isModalActive = useIsModalActive('voice-chat-menu')
   const nearby = useSnapshot(voiceNearbyPlayers)
   const { voiceMasterVolume, voiceInputDeviceId } = useSnapshot(options)
-  const { isConnected, isErrored } = useSnapshot(voiceChatStatus)
+  const { isConnected, isErrored, muted, lastError } = useSnapshot(voiceChatStatus)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const compact = useIsSmallWidth()
 
@@ -70,7 +71,9 @@ export default () => {
   return <Screen title="Voice Chat" backdrop>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: compact ? 220 : 300, fontSize: 10 }}>
       {isErrored && (
-        <div style={{ color: '#ff5555', textAlign: 'center' }}>Voice chat failed to connect. Check the notification for details.</div>
+        <div style={{ color: '#ff5555', textAlign: 'center' }}>
+          Voice chat failed to connect.{lastError && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>{lastError}</div>}
+        </div>
       )}
       {!isErrored && !isConnected && (
         <div style={{ color: '#ffcc00', textAlign: 'center' }}>Connecting…</div>
@@ -94,6 +97,12 @@ export default () => {
           max={100}
           value={Math.round(voiceMasterVolume * 100)}
           updateValue={value => setMasterVolume(value / 100)}
+        />
+        <Button
+          label={muted ? 'Enable microphone' : 'Mute microphone'}
+          disabled={!isConnected}
+          style={{ width: '100%', marginTop: 6 }}
+          onClick={toggleTalking}
         />
         <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? 2 : 6, marginTop: 6 }}>
           <span style={compact ? undefined : { width: 60 }}>Microphone</span>

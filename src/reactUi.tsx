@@ -59,7 +59,6 @@ import { useAppScale } from './scaleInterface'
 import PacketsReplayProvider from './react/PacketsReplayProvider'
 import TouchInteractionHint from './react/TouchInteractionHint'
 import { ua } from './react/utils'
-import VoiceMicrophone from './react/VoiceMicrophone'
 import ConnectOnlyServerUi from './react/ConnectOnlyServerUi'
 import ControDebug from './react/ControDebug'
 import ChunksDebug from './react/ChunksDebug'
@@ -186,7 +185,6 @@ const InGameUi = () => {
           {!disabledUiParts.includes('crosshair') && <Crosshair />}
           {!disabledUiParts.includes('books') && <BookProvider />}
           {!disabledUiParts.includes('bossbars') && displayBossBars && <BossBarOverlayProvider />}
-          <VoiceMicrophone />
           <ChunksDebugScreen />
           <RecipeEditorScreen />
           <RendererDebugMenu />

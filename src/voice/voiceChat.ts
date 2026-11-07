@@ -45,6 +45,10 @@ const describeVoiceError = (error: unknown) => {
   }
 }
 
+const setVoiceError = (detail: string) => {
+  voiceChatStatus.lastError = detail
+}
+
 /**
  * LiveKit's browser SDK expects the service origin and appends `/rtc/v1`
  * itself. This also accepts an old issuer configuration containing `/rtc`, so
@@ -332,6 +336,7 @@ export const connectVoice = async (config: VoiceConfig) => {
     const detail = describeVoiceError(error)
     console.error('[voice] invalid server config', { url: config.url, room: config.room, mode: config.mode }, error)
     showNotification('Voice chat failed to connect', detail, true)
+    setVoiceError(detail)
     clearJoinTimeout()
     voiceChatStatus.isJoining = false
     voiceChatStatus.active = true
@@ -343,6 +348,7 @@ export const connectVoice = async (config: VoiceConfig) => {
     const detail = 'Voice server returned an incomplete connection configuration.'
     console.error('[voice] invalid server config', { hasToken: Boolean(config.token), room: config.room, identity: config.identity, mode: config.mode })
     showNotification('Voice chat failed to connect', detail, true)
+    setVoiceError(detail)
     clearJoinTimeout()
     voiceChatStatus.isJoining = false
     voiceChatStatus.active = true
@@ -418,6 +424,7 @@ export const connectVoice = async (config: VoiceConfig) => {
     voiceChatStatus.active = true
     voiceChatStatus.isConnected = true
     voiceChatStatus.isErrored = false
+    voiceChatStatus.lastError = ''
     voiceChatStatus.muted = true
     // Ask once on joining so the player can grant microphone permission before
     // they need to talk. The track stays muted until the mic button is clicked.
@@ -426,6 +433,7 @@ export const connectVoice = async (config: VoiceConfig) => {
     const detail = describeVoiceError(error)
     console.error('[voice] failed to connect', { url: liveKitUrl, room: config.room, mode: config.mode }, error)
     showNotification('Voice chat failed to connect', detail, true)
+    setVoiceError(detail)
     // Tear down the connection but keep the HUD indicator visible in an
     // errored state, rather than fully disconnecting (which would hide it).
     await cleanupConnection()
@@ -472,6 +480,7 @@ export const disconnectVoice = async () => {
   voiceChatStatus.active = false
   voiceChatStatus.isConnected = false
   voiceChatStatus.isErrored = false
+  voiceChatStatus.lastError = ''
   voiceChatStatus.hasInputVoice = false
   pendingVoiceAvailable = false
 }
@@ -564,6 +573,7 @@ export const enableVoice = () => {
     console.warn('[voice] timed out waiting for the server to confirm voice chat')
     voiceChatStatus.isJoining = false
     voiceChatStatus.isErrored = true
+    setVoiceError('Voice server did not return a connection configuration within 10 seconds.')
     voiceChatStatus.active = true
   }, 10_000)
 }
@@ -585,6 +595,19 @@ export const declineVoice = () => {
 
 export const onVoiceConfig = (config: VoiceConfig) => {
   void connectVoice(config)
+}
+
+/** Display plugin-side failures, such as attempting voice before AuthMe login. */
+export const onVoiceError = (payload: { message?: unknown }) => {
+  const detail = typeof payload.message === 'string' ? payload.message : 'Voice service rejected the request.'
+  console.error('[voice] server rejected voice request', detail)
+  setVoiceError(detail)
+  clearJoinTimeout()
+  voiceChatStatus.isJoining = false
+  voiceChatStatus.active = true
+  voiceChatStatus.isConnected = false
+  voiceChatStatus.isErrored = true
+  showNotification('Voice chat failed to connect', detail, true)
 }
 
 export const getVoiceConfig = () => currentConfig

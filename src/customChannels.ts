@@ -9,7 +9,7 @@ import { registerRecipeChannels } from './core/recipeChannels'
 import { serverSafeSettings } from './defaultOptions'
 import { lastConnectOptions } from './appStatus'
 import { gameAdditionalState } from './globalState'
-import { applyNearbyPlayers, onVoiceAvailable, onVoiceConfig, setVoiceServerSender, disconnectVoice } from './voice/voiceChat'
+import { applyNearbyPlayers, onVoiceAvailable, onVoiceConfig, onVoiceError, setVoiceServerSender, disconnectVoice } from './voice/voiceChat'
 
 const isWebSocketServer = (server: string | undefined) => {
   if (!server) return false
@@ -706,6 +706,10 @@ const registerVoiceChatChannel = () => {
       }
       case 'config': {
         onVoiceConfig(payload)
+        break
+      }
+      case 'error': {
+        onVoiceError(payload)
         break
       }
       case 'nearby': {
